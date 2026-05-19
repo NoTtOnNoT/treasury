@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบบริหารจัดการเหรัญญิกมืออาชีพ (Class Treasury Pro)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+    
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', 'Sarabun', sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans antialiased">
+
+    <div class="lg:hidden bg-slate-900 text-white p-4 flex justify-between items-center sticky top-0 z-50">
+        <h1 class="text-xl font-bold tracking-tight">Class Treasury Pro</h1>
+        <div class="flex items-center gap-2">
+            <button onclick="handleLogout()" class="p-2 text-rose-400 hover:text-rose-300 transition focus:outline-none cursor-pointer" title="ออกจากระบบ">
+                <i class="fas fa-sign-out-alt text-lg"></i>
+            </button>
+            <button id="menu-toggle" class="p-2 focus:outline-none cursor-pointer">
+                <i class="fas fa-bars text-xl"></i>
+            </button>
+        </div>
+    </div>
+
+    <div class="flex">
+        <aside id="sidebar" class="fixed inset-y-0 left-0 z-40 w-64 bg-slate-900 text-slate-300 transform -translate-x-full lg:translate-x-0 transition-transform duration-300 ease-in-out flex flex-col justify-between shadow-2xl lg:sticky lg:h-screen">
+            <div class="p-6">
+                <div class="flex items-center gap-3 mb-8">
+                    <div class="bg-indigo-600 p-2.5 rounded-xl text-white shadow-lg shadow-indigo-500/30">
+                        <i class="fas fa-wallet text-xl"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-white font-bold text-lg leading-tight">Treasury Pro</h2>
+                        <span class="text-xs text-slate-400">ระบบปฏิทินเหรัญญิก</span>
+                    </div>
+                </div>
+
+                <nav class="space-y-1">
+                    <button onclick="switchPage('page-dashboard')" id="nav-dashboard" class="nav-btn active w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm transition">
+                        <i class="fas fa-chart-pie text-base w-5"></i> หน้าแรก (ภาพรวมสะสม)
+                    </button>
+                    <button onclick="switchPage('page-students')" id="nav-students" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm transition">
+                        <i class="fas fa-calendar-check text-base w-5"></i> บันทึกเงินสดรายวัน (28 คน)
+                    </button>
+                    <button onclick="switchPage('page-expenses')" id="nav-expenses" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm transition">
+                        <i class="fas fa-file-invoice-dollar text-base w-5"></i> รายละเอียดเงินออก
+                    </button>
+                </nav>
+            </div>
+
+            <div class="p-4 border-t border-slate-800 flex flex-col gap-3">
+                <div class="px-2 text-[11px] text-slate-500 space-y-0.5">
+                    <p class="flex items-center gap-1.5 text-emerald-400 font-medium">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> เชื่อมต่อคลาวด์เรียบร้อย
+                    </p>
+                    <p>v3.0.0 (Calendar Engine)</p>
+                </div>
+                
+                <button onclick="handleLogout()" class="w-full flex items-center justify-center gap-2 px-4 py-3 bg-rose-500/10 hover:bg-rose-500 text-rose-400 hover:text-white font-bold text-xs rounded-xl border border-rose-500/20 hover:border-transparent transition-all duration-200 cursor-pointer group active:scale-95 shadow-sm">
+                    <i class="fas fa-sign-out-alt transition-transform group-hover:-translate-x-0.5"></i> ออกจากระบบบัญชี
+                </button>
+            </div>
+        </aside>
+
+        <div id="sidebar-overlay" class="hidden fixed inset-0 bg-black/40 z-30 lg:hidden"></div>
+
+        <main class="flex-1 min-w-0 overflow-y-auto p-4 md:p-8 lg:p-10">
+            
+            <section id="page-dashboard" class="page-content active space-y-6">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <div>
+                        <h1 class="text-2xl font-bold text-slate-900 md:text-3xl">ภาพรวมสถานะการเงินห้อง</h1>
+                        <p class="text-sm text-slate-500">รวมข้อมูลยอดเงินสดจริงทั้งหมดที่สะสมได้ ณ ปัจจุบัน</p>
+                    </div>
+                    <button onclick="exportToCSV()" class="bg-white hover:bg-slate-50 text-slate-700 font-semibold text-sm py-2 px-4 border border-slate-300 rounded-xl shadow-xs transition flex items-center gap-2 cursor-pointer">
+                        <i class="fas fa-file-download text-indigo-600"></i> ส่งออกไฟล์ CSV
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div class="bg-white p-6 rounded-2xl shadow-xs border border-slate-200/80 flex items-center justify-between">
+                        <div>
+                            <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">งบประมาณห้องปัจจุบัน</p>
+                            <p class="text-3xl font-bold text-slate-900 mt-1">฿<span id="dash-balance">0.00</span></p>
+                        </div>
+                        <div class="bg-indigo-50 text-indigo-600 p-4 rounded-xl text-xl"><i class="fas fa-scale-balanced"></i></div>
+                    </div>
+                    <div class="bg-white p-6 rounded-2xl shadow-xs border border-slate-200/80 flex items-center justify-between">
+                        <div>
+                            <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">ยอดรับเข้าสะสมทั้งหมด</p>
+                            <p class="text-3xl font-bold text-emerald-600 mt-1">฿<span id="dash-income">0.00</span></p>
+                        </div>
+                        <div class="bg-emerald-50 text-emerald-600 p-4 rounded-xl text-xl"><i class="fas fa-arrow-trend-up"></i></div>
+                    </div>
+                    <div class="bg-white p-6 rounded-2xl shadow-xs border border-slate-200/80 flex items-center justify-between">
+                        <div>
+                            <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">ยอดจ่ายออกสะสมทั้งหมด</p>
+                            <p class="text-3xl font-bold text-rose-600 mt-1">฿<span id="dash-expense">0.00</span></p>
+                        </div>
+                        <div class="bg-rose-50 text-rose-600 p-4 rounded-xl text-xl"><i class="fas fa-arrow-trend-down"></i></div>
+                    </div>
+                </div>
+
+                <div class="bg-white p-6 rounded-2xl shadow-xs border border-slate-200/80">
+                    <div class="flex justify-between items-center mb-2">
+                        <h3 class="font-bold text-slate-800 text-sm">ความคืบหน้าของรอบวันที่เลือก</h3>
+                        <span id="collection-percent" class="text-xs font-bold bg-indigo-50 text-indigo-600 px-2.5 py-1 rounded-full">0%</span>
+                    </div>
+                    <div class="w-full bg-slate-100 rounded-full h-3">
+                        <div id="collection-bar" class="bg-indigo-600 h-3 rounded-full transition-all duration-500" style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl shadow-xs border border-slate-200/80 overflow-hidden">
+                    <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-900 text-white">
+                        <h3 class="font-bold"><i class="fas fa-calendar-alt mr-2 text-indigo-400"></i>สรุปยอดบัญชีรายวันและสถานะการค้างจ่ายประจำรอบ</h3>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="bg-slate-50 text-slate-500 text-2xs font-bold uppercase tracking-wider border-b border-slate-200">
+                                    <th class="p-4 w-32">วันที่รอบบัญชี</th>
+                                    <th class="p-4 text-center">เกณฑ์เรียกเก็บ (คนละ)</th>
+                                    <th class="p-4 text-right text-emerald-600">รวมเงินเข้า (บาท)</th>
+                                    <th class="p-4 text-center w-48">สถานะรอบวัน (ค้างจ่าย)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="daily-ledger-body" class="divide-y divide-slate-100 text-sm">
+                                <tr>
+                                    <td colspan="4" class="p-8 text-center text-slate-400 text-xs">กำลังคำนวณและประมวลผลข้อมูลจากระบบคลาวด์...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <section id="page-students" class="page-content space-y-6">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-slate-900 text-white p-6 rounded-3xl shadow-xl">
+                    <div>
+                        <h1 class="text-xl font-bold md:text-2xl flex items-center gap-2 text-white">
+                            📅 ประจำวันที่: <span id="current-date-context-title" class="text-indigo-400">กำลังโหลด...</span>
+                        </h1>
+                        <p class="text-xs text-slate-400 mt-0.5">เลือกปฏิทินขวามือเพื่อย้อนดูประวัติหรือระบุเกณฑ์การเช็คชื่อจ่ายเงินประจำรอบวัน</p>
+                    </div>
+                    <div class="flex items-center gap-2 bg-slate-800 p-2 rounded-2xl border border-slate-700 w-full md:w-auto">
+                        <span class="text-xs text-slate-300 font-semibold pl-2 shrink-0"><i class="far fa-calendar-alt mr-1 text-indigo-400"></i>เปลี่ยนวันที่:</span>
+                        <input type="date" id="config-date-picker" class="bg-slate-950 text-white text-xs p-2 rounded-xl focus:outline-none font-bold border border-slate-700 w-full">
+                    </div>
+                </div>
+
+                <div class="bg-white p-4 rounded-2xl border border-slate-200 flex flex-col lg:flex-row items-center justify-between gap-4 shadow-xs">
+                    <div>
+                        <h3 class="text-sm font-bold text-slate-800">💰 อัตราเรียกเก็บเงินรอบนี้</h3>
+                        <p class="text-xs text-slate-400">ใส่ยอดเงินที่คุณต้องการเรียกเก็บสมาชิกแต่ละคนของวันที่เลือกด้านบน</p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <input type="number" id="input-target-amount" class="w-24 p-2 border border-slate-200 bg-slate-50/50 rounded-xl text-center text-sm font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500/20">
+                        <span class="text-sm text-slate-600 font-medium">บาท</span>
+                        <button id="btn-set-target" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2 rounded-xl transition shadow-xs cursor-pointer">
+                            บันทึกเกณฑ์วันนี้
+                        </button>
+                    </div>
+                    <div class="bg-indigo-50/50 px-4 py-2.5 rounded-xl border border-indigo-100 text-right w-full lg:w-auto flex flex-col sm:flex-row lg:flex-col justify-between gap-2 sm:gap-6 lg:gap-0.5">
+                        <div class="text-left sm:text-right">
+                            <span class="text-xs text-slate-500 block">เกณฑ์คนละ: <span class="font-bold text-slate-900" id="today-target-display">0.00</span> บ.</span>
+                            <span class="text-xs text-slate-500 block mt-0.5">เป้าหมายรวมห้องรอบนี้: <span class="font-bold text-indigo-600" id="today-total-target">0.00</span> บ.</span>
+                        </div>
+                        <div class="text-left sm:text-right border-t border-indigo-100 sm:border-t-0 sm:border-l sm:pl-6 lg:border-l-0 lg:pl-0 lg:border-t lg:mt-1 lg:pt-1">
+                            <span class="text-xs text-slate-500 block">จ่ายแล้ว: <span id="summary-paid-count" class="font-bold text-emerald-600">0</span> จาก 28 คน</span>
+                            <span class="text-xs text-slate-500 block mt-0.5">เหลืออีก: <span id="summary-unpaid-count" class="font-bold text-rose-600">0</span> คนที่ยังไม่จ่าย</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white p-4 rounded-2xl shadow-xs border border-slate-200/80 flex flex-col sm:flex-row gap-3 justify-between items-center">
+                    <div class="relative w-full sm:w-72">
+                        <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                            <i class="fas fa-search text-sm"></i>
+                        </span>
+                        <input type="text" id="search-student" oninput="filterStudents()" class="w-full pl-9 pr-4 py-2 border border-slate-200 bg-slate-50/50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500" placeholder="ค้นหาเลขที่ หรือ ชื่อ...">
+                    </div>
+                    <div class="flex gap-2 w-full sm:w-auto">
+                        <button onclick="filterStudentStatus('all')" class="flex-1 sm:flex-none px-4 py-1.5 text-xs font-bold bg-slate-100 rounded-lg text-slate-600 hover:bg-slate-200 cursor-pointer">ทั้งหมด</button>
+                        <button onclick="filterStudentStatus('paid')" class="flex-1 sm:flex-none px-4 py-1.5 text-xs font-bold bg-emerald-50 rounded-lg text-emerald-600 hover:bg-emerald-100 cursor-pointer">จ่ายแล้ว</button>
+                        <button onclick="filterStudentStatus('unpaid')" class="flex-1 sm:flex-none px-4 py-1.5 text-xs font-bold bg-rose-50 rounded-lg text-rose-600 hover:bg-rose-100 cursor-pointer">ค้างจ่าย</button>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl shadow-xs border border-slate-200/80 overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="bg-slate-50 text-slate-500 text-xs font-bold uppercase tracking-wider border-b border-slate-200">
+                                    <th class="p-4">ลำดับเลขที่ / รายชื่อสมาชิก (คลิกเพื่อดูโปรไฟล์)</th>
+                                    <th class="p-4 text-center w-72">React สถานะรอบวัน</th>
+                                    <th class="p-4 text-right">จำนวนเงินสดรอบนี้</th>
+                                    <th class="p-4 text-center w-48">รายละเอียด</th>
+                                </tr>
+                            </thead>
+                            <tbody id="student-list" class="divide-y divide-slate-100 text-sm"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <section id="page-expenses" class="page-content space-y-6">
+                <div>
+                    <h1 class="text-2xl font-bold text-slate-900 md:text-3xl">บันทึกและจำแนกเงินออก</h1>
+                    <p class="text-sm text-slate-500">สร้างกลุ่มกิจกรรมหลัก และระบุรายละเอียดค่าใช้จ่ายย่อยแยกหมวดหมู่</p>
+                </div>
+
+                <div class="bg-white p-6 rounded-2xl shadow-xs border border-slate-200/80">
+                    <h2 class="text-base font-bold text-slate-900 mb-3"><i class="fas fa-folder-plus text-rose-500 mr-2"></i>เปิดกลุ่มกิจกรรม/โครงการใหม่</h2>
+                    <form id="main-expense-form" class="flex flex-col sm:flex-row gap-3">
+                        <input type="text" id="main-expense-title" required class="flex-1 p-2.5 border border-slate-200 rounded-xl bg-slate-50/50 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500" placeholder="เช่น กิจกรรมวันกีฬาสี">
+                        <button type="submit" class="bg-rose-600 hover:bg-rose-700 text-white font-semibold text-sm px-5 py-2.5 rounded-xl transition cursor-pointer shrink-0">สร้างกลุ่ม</button>
+                    </form>
+                </div>
+
+                <div id="expense-categories-container" class="grid grid-cols-1 md:grid-cols-2 gap-6"></div>
+            </section>
+
+        </main>
+    </div>
+
+    <script>
+        // 🛡️ Security Guard: ตรวจเช็คว่ามีสิทธิ์แอดมินไหม ถ้าไม่มีให้เด้งกลับหน้าล็อกอินทันที
+        if (localStorage.getItem('admin_session') !== 'authenticated' && sessionStorage.getItem('admin_session') !== 'authenticated') {
+            window.location.href = 'login.html';
+        }
+
+        // 🚪 ฟังก์ชันเมื่อกดปุ่ม Logout
+        function handleLogout() {
+            if (confirm('คุณต้องการออกจากระบบบริหารจัดการเงินห้องเรียนใช่หรือไม่?')) {
+                // เคลียร์ข้อมูลการล็อกอินทิ้งทั้งหมด
+                localStorage.removeItem('admin_session');
+                sessionStorage.removeItem('admin_session');
+                // ส่งกลับไปยังหน้าล็อกอินหลัก
+                window.location.href = 'login.html';
+            }
+        }
+    </script>
+    <script type="module" src="script.js"></script>
+</body>
+</html>

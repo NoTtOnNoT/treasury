@@ -1,0 +1,187 @@
+/* ==========================================================================
+   1. GLOBAL SETTINGS & TYPOGRAPHY (ตั้งค่าฟอนต์และการแสดงผลภาษาไทย)
+   ========================================================================== */
+@import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=Kanit:wght@300;400;500;600;700&display=swap');
+
+:root {
+    --primary-indigo: #4f46e5;
+    --primary-dark: #0f172a;
+    --accent-rose: #e11d48;
+    --emerald-success: #10b981;
+}
+
+body {
+    font-family: 'Sarabun', 'Kanit', sans-serif;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background-color: #f8fafc;
+}
+
+/* แก้ไขปัญหาสระภาษาไทยลอยหรือซ้อนกันในบางเบราว์เซอร์ */
+p, font, span, td, th, h1, h2, h3 {
+    line-height: 1.6;
+}
+
+/* ==========================================================================
+   2. PAGE ROUTING & ANIMATIONS (ควบคุมการสลับหน้าและเอฟเฟกต์การเปลี่ยนหน้า)
+   ========================================================================== */
+.page-content {
+    display: none;
+    opacity: 0;
+    transform: translateY(12px);
+    transition: opacity 0.35s cubic-bezier(0.4, 0, 0.2, 1), transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* คลาสที่จะถูกเรียกใช้เมื่อหน้าจอเปิดใช้งาน */
+.page-content.active {
+    display: block;
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* ==========================================================================
+   3. SIDEBAR NAVIGATION CUSTOM STYLES (ตกแต่งแถบเลือกเมนูด้านซ้าย)
+   ========================================================================== */
+.nav-btn {
+    position: relative;
+    color: #94a3b8; /* slate-400 */
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    border-left: 4px solid transparent;
+}
+
+.nav-btn:hover {
+    background-color: rgba(30, 41, 59, 0.7); /* slate-800/70 */
+    color: #f8fafc; /* slate-50 */
+    padding-left: 1.25rem;
+}
+
+/* สไตล์เมื่อปุ่มเมนูนั้นถูกเลือกอยู่ */
+.nav-btn.active {
+    background-color: var(--primary-indigo);
+    color: #ffffff !important;
+    border-left-color: #38bdf8; /* แถบสีฟ้าอ่อนด้านซ้ายสุดของปุ่ม */
+    box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.3), 0 4px 6px -4px rgba(79, 70, 229, 0.3);
+}
+
+.nav-btn i {
+    transition: transform 0.25s ease;
+}
+
+.nav-btn.active i {
+    transform: scale(1.1);
+    color: #38bdf8;
+}
+
+/* ==========================================================================
+   4. PREMIUM DATA TABLES (ปรับแต่งตารางรายชื่อนักเรียนให้สวยงามและอ่านง่าย)
+   ========================================================================== */
+th {
+    letter-spacing: 0.05em;
+    font-weight: 600;
+    background-color: #f1f5f9;
+    color: #475569;
+}
+
+tr {
+    transition: background-color 0.2s ease;
+}
+
+/* เอฟเฟกต์ Glow จางๆ เมื่อเอาเมาส์ไปชี้แถวในตาราง */
+tbody tr:hover {
+    background-color: #f1f5f9/50 !important;
+}
+
+/* จัดการ Input ภายในตารางให้ดูสะอาดและหรูหรา */
+input[type="number"], input[type="text"], select {
+    transition: all 0.2s ease-in-out;
+}
+
+input[type="number"]:focus, input[type="text"]:focus, select:focus {
+    background-color: #ffffff;
+    box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.15);
+    border-color: var(--primary-indigo);
+}
+
+/* ซ่อนปุ่มเพิ่ม/ลดตัวเลขลูกศรของ Input Type Number */
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+input[type=number] {
+    -moz-appearance: textfield;
+}
+
+/* ==========================================================================
+   5. INTERACTIVE CARDS & SHADOWS (ระบบเงาและการ์ดแสดงผลสถิติ)
+   ========================================================================== */
+.card-stats {
+    background: #ffffff;
+    border: 1px solid rgba(226, 232, 240, 0.8);
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.card-stats:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+}
+
+/* ==========================================================================
+   6. CUSTOM SCROLLBARS (ปรับแต่งแถบสกลอร์บาร์ของระบบซอฟต์แวร์)
+   ========================================================================== */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 8px;
+    border: 2px solid #f1f5f9;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+/* ==========================================================================
+   7. MOBILE RESPONSIVE OVERLAYS (ระบบจัดการเมนูเมื่อเปิดในสมาร์ทโฟน)
+   ========================================================================== */
+@media (max-width: 1023px) {
+    #sidebar {
+        box-shadow: 25px 0 50px -12px rgba(0, 0, 0, 0.25);
+    }
+    
+    /* เอฟเฟกต์เบลอฉากหลังเวลาเปิดเมนูบนมือถือ */
+    #sidebar-overlay {
+        backdrop-filter: blur(4px);
+        -webkit-backdrop-filter: blur(4px);
+        transition: all 0.3s ease;
+    }
+}
+
+/* ==========================================================================
+   8. PRINT OPTIMIZATION (ระบบรองรับการพิมพ์รายงานออกทางเครื่องพริ้นเตอร์)
+   ========================================================================== */
+@media print {
+    #sidebar, #menu-toggle, button, form, input, .lg\:hidden {
+        display: none !important;
+    }
+    main {
+        padding: 0 !important;
+        margin: 0 !important;
+        width: 100% !important;
+    }
+    .page-content {
+        display: block !important;
+        opacity: 1 !important;
+        transform: none !important;
+    }
+}
