@@ -19,6 +19,34 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
+window.__treasuryModuleLoaded = true;
+let targetsReady = false;
+let studentsReady = false;
+const statusEl = () => document.getElementById('cloud-status');
+function showSyncStatus(message, isError = false) {
+    const el = statusEl();
+    if (el) {
+        el.textContent = message;
+        el.closest('p')?.classList.toggle('text-rose-400', isError);
+        el.closest('p')?.classList.toggle('text-emerald-400', !isError);
+    }
+}
+function showDataError(label, error) {
+    console.error(`Firebase ${label}:`, error);
+    showSyncStatus(`${label}: ${error?.code === 'PERMISSION_DENIED' ? 'ไม่มีสิทธิ์อ่านข้อมูล ตรวจสอบ Rules' : (error?.message || 'เชื่อมต่อไม่ได้')}`, true);
+    const tbody = document.getElementById('daily-ledger-body');
+    if (tbody) {
+        tbody.replaceChildren();
+        const cell = tbody.insertRow().insertCell();
+        cell.colSpan = 4;
+        cell.className = 'p-8 text-center text-rose-600 text-xs';
+        cell.textContent = `${label} — ตรวจสอบ Firebase Rules และการเชื่อมต่อ`;
+    }
+}
+function markReady() {
+    if (targetsReady && studentsReady) showSyncStatus('ข้อมูลบัญชีอัปเดตแล้ว');
+}
+
 
 // Admin session is remembered in the selected browser storage.
 // This is a UI gate only; RTDB rules cannot verify a client-side session flag.
@@ -116,14 +144,22 @@ function initTreasuryApp() {
         overlay.addEventListener('click', toggleMobileMenu);
     }
 
-    // โหลดข้อมูลเกณฑ์เงินรายวันทั้งหมด
+    // แสดงสถานะจากข้อมูลจริง ไม่ใช้ข้อความเชื่อมต่อแบบคงที่
+    setTimeout(() => {
+        if (!targetsReady || !studentsReady) showDataError('รอข้อมูลนานเกินไป', new Error('ตรวจสอบเครือข่ายและ Database Rules'));
+    }, 12000);
+
     onValue(dbTargetsRef, (snapshot) => {
         localDailyTargets = snapshot.val() || {};
+        targetsReady = true;
         updateDateContext();
-    });
+        markReady();
+    }, error => showDataError('โหลดรอบเรียกเก็บไม่ได้', error));
 
     // โหลดข้อมูลนักเรียน
     onValue(dbStudentsRef, (snapshot) => {
+        studentsReady = true;
+        markReady();
         const data = snapshot.val();
         if (!data) {
             let initialStudents = {};
@@ -136,20 +172,20 @@ function initTreasuryApp() {
                     attendance: {} 
                 };
             }
-            set(dbStudentsRef, initialStudents);
+            set(dbStudentsRef, initialStudents).catch(error => showDataError('สร้างรายชื่อนักเรียนไม่ได้', error));
         } else {
             localStudents = data;
             renderStudentList();
             calculateSummary();
         }
-    });
+    }, error => showDataError('โหลดรายชื่อนักเรียนไม่ได้', error));
 
     // โหลดรายจ่าย
     onValue(dbExpensesRef, (snapshot) => {
         localExpenses = snapshot.val() || {};
         renderExpenseCategories();
         calculateSummary();
-    });
+    }, error => showDataError('โหลดรายจ่ายไม่ได้', error));
 
     // โหลด Logs
     onValue(dbLogsRef, (snapshot) => {
