@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>เข้าสู่ระบบนักเรียน | เงินห้อง</title>
+<link rel="stylesheet" href="dashboard.css">
+</head>
+<body class="student-page auth-page">
+<main class="auth-card">
+<div class="brand">KC · TREASURY</div>
+<h1>ตรวจสอบเงินห้องของฉัน</h1>
+<p>กรอกรหัสนักเรียน 5 หลัก เพื่อดูข้อมูลของรหัสนั้น</p>
+<form id="student-login-form">
+<label for="student-id">รหัสนักเรียน</label>
+<input id="student-id" type="text" inputmode="numeric" pattern="[0-9]{5}" maxlength="5" autocomplete="username" required placeholder="เช่น 27648">
+<button id="submit-button" type="submit">เข้าสู่ระบบ</button>
+</form>
+<p id="login-error" role="alert" class="error" hidden></p>
+<p class="small">ระบบจำรหัสที่เข้าสู่ระบบไว้บนเครื่องนี้ · ผู้ที่ทราบรหัสนักเรียนสามารถดูข้อมูลของรหัสนั้นได้</p>
+</main>
+<script type="module" src="student-login.js"></script>
+</body></html>

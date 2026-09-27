@@ -1,6 +1,13 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getDatabase, ref, set, push, onValue, remove } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+/* ==========================================================================
+   APPLICATION CENTRALIZED MANAGEMENT SYSTEM (script.js)
+   Compatible with Firebase Web SDK v10 (Realtime Database)
+   ========================================================================== */
 
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { getDatabase, ref, get, set, push, onValue, remove } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+// 1. FIREBASE CONFIGURATION
 const firebaseConfig = {
   apiKey: "AIzaSyDg3OY7bSroS76kKIaB8YxEEvdrZAuhn0Q",
   authDomain: "kc-smart-6e44d.firebaseapp.com",
@@ -14,30 +21,43 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-/* ==========================================================================
-   0. AUTH SECURITY CHECK (ระบบรักษาความปลอดภัยก่อนโหลดแอปพลิเคชัน)
-   ========================================================================== */
-if (localStorage.getItem('admin_session') !== 'authenticated' && sessionStorage.getItem('admin_session') !== 'authenticated') {
-    window.location.href = 'login.html';
-}
+// Firebase Auth + database allowlist; never trust a browser storage flag.
+const auth = getAuth(app);
+let authorized = false;
+onAuthStateChanged(auth, async user => {
+    if (!user) { location.replace('/login'); return; }
+    try {
+        const record = await get(ref(db, `admin_uids/${user.uid}`));
+        if (record.val() !== true) { await signOut(auth); location.replace('/login'); return; }
+        authorized = true;
+        if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initTreasuryApp, {once:true});
+        else initTreasuryApp();
+    } catch { await signOut(auth); location.replace('/login'); }
+});
 
+// 3. DATABASE REFERENCE DECLARATIONS
 const dbStudentsRef = ref(db, 'students');
 const dbExpensesRef = ref(db, 'expenses_categories');
 const dbLogsRef = ref(db, 'transaction_logs');
 const dbTargetsRef = ref(db, 'system_config/daily_targets');
+const dbHomeworkRef = ref(db, 'homework_logs'); 
 
+// 4. LOCAL STATES STATE MANAGEMENT
 let localStudents = {};
 let localExpenses = {};
 let localLogs = [];
 let localDailyTargets = {};
+let localHomeworks = {}; 
 
-// ตัวแปรเก็บ "วันที่ที่กำลังเลือกทำงาน" (เริ่มต้นเป็นวันที่ปัจจุบัน ยึดปีปัจจุบัน 2026)
+// วันที่ตั้งต้นการทำงาน (ยึดปีปัจจุบันตามที่กำหนดระบบควบคุม 2026)
 let selectedDate = new Date().toISOString().split('T')[0]; 
 
 /* ==========================================================================
-   1. SYSTEM INITIALIZATION & DATE CONTROL
+   CORE INITIALIZATION FUNCTION
    ========================================================================== */
 function initTreasuryApp() {
+    if (!authorized || initTreasuryApp.started) return;
+    initTreasuryApp.started = true;
     // ตั้งค่าปฏิทินหน้าจอให้เป็นวันปัจจุบันเริ่มต้น
     const dateInput = document.getElementById('config-date-picker');
     if(dateInput) {
@@ -67,6 +87,28 @@ function initTreasuryApp() {
         const newCatRef = push(dbExpensesRef);
         set(newCatRef, { title: input.value.trim(), id: newCatRef.key });
         input.value = '';
+    });
+
+    // ผูกเหตุการณ์ฟอร์มบันทึกการบ้านประจำวัน (สำหรับฝั่งเลขาแอดมิน)
+    document.getElementById('homework-form')?.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const subject = document.getElementById('hw-subject')?.value.trim();
+        const detail = document.getElementById('hw-detail')?.value.trim();
+        const dueDate = document.getElementById('hw-due-date')?.value;
+
+        if (!subject || !detail || !dueDate) return alert('กรุณากรอกข้อมูลการบ้านให้ครบถ้วน');
+
+        const newHwRef = push(dbHomeworkRef);
+        set(newHwRef, {
+            id: newHwRef.key,
+            subject: subject,
+            detail: detail,
+            assignDate: selectedDate, 
+            dueDate: dueDate
+        }).then(() => {
+            alert('ประกาศการบ้านใหม่เข้าระบบสำเร็จ! 📄');
+            e.target.reset();
+        });
     });
 
     // ระบบควบคุมเปิด-ปิด Sidebar สำหรับการใช้งานบนจอมือถือ
@@ -123,9 +165,18 @@ function initTreasuryApp() {
         const data = snapshot.val() || {};
         localLogs = Object.values(data).reverse();
     });
+
+    // โหลดข้อมูลการบ้าน Real-time
+    onValue(dbHomeworkRef, (snapshot) => {
+        localHomeworks = snapshot.val() || {};
+        renderHomeworkAdmin();   
+        renderHomeworkStudent(); 
+    });
 }
 
-// อัปเดต UI เมื่อมีการสลับวันที่บนปฏิทิน
+/* ==========================================================================
+   UI CONTEXT & CALCULATION FUNCTIONS
+   ========================================================================== */
 function updateDateContext() {
     const currentTarget = localDailyTargets[selectedDate] || 0;
     
@@ -143,9 +194,6 @@ function updateDateContext() {
     calculateSummary();
 }
 
-/* ==========================================================================
-   2. DASHBOARD & SUMMARY CALCULATIONS
-   ========================================================================== */
 function calculateSummary() {
     let totalIncome = 0;
     let totalExpense = 0;
@@ -184,7 +232,6 @@ function calculateSummary() {
     const elPercent = document.getElementById('collection-percent');
     const elBar = document.getElementById('collection-bar');
 
-    // ส่วนแสดงผลสถิติคนจ่ายเงินในหน้าบันทึกเงินสดรายวัน (บันทึกเงินสดรายวัน หน้า 2)
     const elSummaryPaid = document.getElementById('summary-paid-count');
     const elSummaryUnpaid = document.getElementById('summary-unpaid-count');
 
@@ -202,6 +249,9 @@ function calculateSummary() {
     renderDailyLedgerTable();
 }
 
+/* ==========================================================================
+   DYNAMIC RENDERING FUNCTIONS (DOM MANIPULATION)
+   ========================================================================== */
 function renderDailyLedgerTable() {
     const container = document.getElementById('daily-ledger-body');
     if (!container) return;
@@ -245,9 +295,6 @@ function renderDailyLedgerTable() {
     });
 }
 
-/* ==========================================================================
-   3. STUDENTS ATTENDANCE LOGIC
-   ========================================================================== */
 function renderStudentList() {
     const container = document.getElementById('student-list');
     if (!container) return;
@@ -293,6 +340,120 @@ function renderStudentList() {
     });
 }
 
+function renderExpenseCategories() {
+    const container = document.getElementById('expense-categories-container');
+    if (!container) return;
+    container.innerHTML = '';
+    Object.values(localExpenses).forEach(category => {
+        const card = document.createElement('div');
+        card.className = "bg-white p-5 rounded-2xl shadow-xs border border-slate-200 flex flex-col justify-between";
+        let catSum = 0; let itemsHTML = '';
+        if(category.sub_items) {
+            Object.entries(category.sub_items).forEach(([subId, item]) => {
+                catSum += parseFloat(item.amount);
+                itemsHTML += `
+                    <div class="flex justify-between items-center py-2 text-xs text-slate-600 border-b border-dashed border-slate-100">
+                        <span>• ${item.detail}</span>
+                        <div class="space-x-2">
+                            <span class="font-bold text-rose-600">-฿${parseFloat(item.amount).toFixed(2)}</span>
+                            <button onclick="deleteSubExpense('${category.id}', '${subId}')" class="text-slate-300 hover:text-rose-500 cursor-pointer"><i class="fas fa-trash-can"></i></button>
+                        </div>
+                    </div>`;
+            });
+        }
+        card.innerHTML = `
+            <div>
+                <div class="flex justify-between items-start mb-3 pb-2 border-b border-slate-100">
+                    <div>
+                        <h3 class="font-bold text-slate-900 text-base">📂 ${category.title}</h3>
+                        <span class="text-xs font-bold text-slate-400">ใช้ไปรวม: ฿${catSum.toLocaleString('th-TH')}</span>
+                    </div>
+                    <button onclick="deleteMainCategory('${category.id}')" class="text-slate-400 hover:text-rose-500 text-xs cursor-pointer"><i class="fas fa-folder-minus mr-1"></i>ลบกลุ่ม</button>
+                </div>
+                <div class="space-y-1 mb-4 max-h-40 overflow-y-auto pr-1">${itemsHTML || '<p class="text-2xs text-slate-400 text-center py-4">ยังไม่มีการบันทึกย่อย</p>'}</div>
+            </div>
+            <div class="bg-slate-50 p-3 rounded-xl space-y-2">
+                <input type="text" id="sub-detail-${category.id}" placeholder="ซื้ออะไร? (เช่น ค่าลูกโป่ง)" class="w-full p-2 text-xs border border-slate-200 bg-white rounded-lg focus:outline-none">
+                <input type="number" id="sub-amount-${category.id}" placeholder="กี่บาท?" class="w-full p-2 text-xs border border-slate-200 bg-white rounded-lg focus:outline-none">
+                <button onclick="addSubExpense('${category.id}')" class="w-full bg-slate-800 hover:bg-slate-900 text-white text-xs py-2 rounded-lg font-semibold transition cursor-pointer">+ บันทึกรายการย่อย</button>
+            </div>`;
+        container.appendChild(card);
+    });
+}
+
+function renderHomeworkAdmin() {
+    const container = document.getElementById('admin-homework-list');
+    if (!container) return; 
+    container.innerHTML = '';
+
+    const hwArray = Object.values(localHomeworks).sort((a, b) => new Date(b.assignDate) - new Date(a.assignDate));
+
+    if (hwArray.length === 0) {
+        container.innerHTML = `<tr><td colspan="5" class="p-8 text-center text-slate-400 text-xs">ยังไม่มีการบันทึกการบ้านในระบบ</td></tr>`;
+        return;
+    }
+
+    hwArray.forEach(hw => {
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-slate-50 transition text-xs border-b border-slate-100";
+        tr.innerHTML = `
+            <td class="p-4 font-medium text-slate-900">${formatThaiDate(hw.assignDate)}</td>
+            <td class="p-4 font-bold text-indigo-600">${hw.subject}</td>
+            <td class="p-4 text-slate-600 whitespace-pre-line">${hw.detail}</td>
+            <td class="p-4 font-bold text-rose-600">${formatThaiDate(hw.dueDate)}</td>
+            <td class="p-4 text-center">
+                <button onclick="deleteHomework('${hw.id}')" class="text-rose-500 hover:text-rose-700 font-bold p-1 cursor-pointer">
+                    <i class="fas fa-trash-can mr-1"></i> ลบ
+                </button>
+            </td>
+        `;
+        container.appendChild(tr);
+    });
+}
+
+function renderHomeworkStudent() {
+    const container = document.getElementById('student-homework-grid');
+    if (!container) return;
+    container.innerHTML = '';
+
+    const hwArray = Object.values(localHomeworks).sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
+
+    if (hwArray.length === 0) {
+        container.innerHTML = `<div class="col-span-full p-8 text-center text-slate-400 text-xs bg-white rounded-2xl border border-slate-200 shadow-2xs">🎉 สบายใจได้! ช่วงนี้ไม่มีการบ้านค้างในระบบ</div>`;
+        return;
+    }
+
+    hwArray.forEach(hw => {
+        const todayStr = new Date().toISOString().split('T')[0];
+        const isOverdue = hw.dueDate < todayStr; 
+        
+        const card = document.createElement('div');
+        card.className = `p-5 rounded-2xl border flex flex-col justify-between transition-all hover:shadow-md ${isOverdue ? 'bg-rose-50/20 border-rose-100 shadow-2xs' : 'bg-white border-slate-200 shadow-xs'}`;
+        
+        card.innerHTML = `
+            <div>
+                <div class="flex justify-between items-start gap-2 mb-2">
+                    <span class="px-2.5 py-1 rounded-lg text-2xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-100 whitespace-nowrap">
+                        📚 ${hw.subject}
+                    </span>
+                    <span class="text-3xs text-slate-400 whitespace-nowrap">สั่งเมื่อ: ${formatThaiDate(hw.assignDate)}</span>
+                </div>
+                <p class="text-xs font-semibold text-slate-700 my-3 whitespace-pre-line leading-relaxed">${hw.detail}</p>
+            </div>
+            <div class="mt-4 pt-3 border-t border-slate-100 flex justify-between items-center text-xs">
+                <span class="font-bold text-slate-400 text-2xs">🗓️ กำหนดส่ง:</span>
+                <span class="font-bold ${isOverdue ? 'text-rose-600' : 'text-emerald-600'}">
+                    ${formatThaiDate(hw.dueDate)} ${isOverdue ? '(เลยกำหนดส่ง ⚠️)' : ''}
+                </span>
+            </div>
+        `;
+        container.appendChild(card);
+    });
+}
+
+/* ==========================================================================
+   INTERACTIVE USER ACTIONS & UTILITIES
+   ========================================================================== */
 window.toggleAttendance = function(studentKey, newStatus) {
     const targetAmountToday = localDailyTargets[selectedDate] || 0;
     if(targetAmountToday === 0 && newStatus === 'paid') {
@@ -312,9 +473,6 @@ window.toggleAttendance = function(studentKey, newStatus) {
     });
 }
 
-/* ==========================================================================
-   4. INDIVIDUAL DEEP PROFILE MODAL
-   ========================================================================== */
 window.openStudentProfileModal = function(studentKey) {
     const student = localStudents[studentKey];
     if(!student) return;
@@ -421,9 +579,6 @@ window.closeStudentProfileModal = function() {
     if(modal) modal.classList.add('hidden');
 }
 
-/* ==========================================================================
-   5. OTHER SYSTEM UTILITIES & WINDOW EXPORTS
-   ========================================================================== */
 function formatThaiDate(dateString) {
     const options = { year: 'numeric', month: 'short', day: 'numeric' };
     return new Date(dateString).toLocaleDateString('th-TH', options);
@@ -470,54 +625,32 @@ window.filterStudentStatus = function(status) {
     });
 }
 
-function renderExpenseCategories() {
-    const container = document.getElementById('expense-categories-container');
-    if (!container) return;
-    container.innerHTML = '';
-    Object.values(localExpenses).forEach(category => {
-        const card = document.createElement('div');
-        card.className = "bg-white p-5 rounded-2xl shadow-xs border border-slate-200 flex flex-col justify-between";
-        let catSum = 0; let itemsHTML = '';
-        if(category.sub_items) {
-            Object.entries(category.sub_items).forEach(([subId, item]) => {
-                catSum += parseFloat(item.amount);
-                itemsHTML += `
-                    <div class="flex justify-between items-center py-2 text-xs text-slate-600 border-b border-dashed border-slate-100">
-                        <span>• ${item.detail}</span>
-                        <div class="space-x-2">
-                            <span class="font-bold text-rose-600">-฿${parseFloat(item.amount).toFixed(2)}</span>
-                            <button onclick="deleteSubExpense('${category.id}', '${subId}')" class="text-slate-300 hover:text-rose-500 cursor-pointer"><i class="fas fa-trash-can"></i></button>
-                        </div>
-                    </div>`;
-            });
-        }
-        card.innerHTML = `
-            <div>
-                <div class="flex justify-between items-start mb-3 pb-2 border-b border-slate-100">
-                    <div>
-                        <h3 class="font-bold text-slate-900 text-base">📂 ${category.title}</h3>
-                        <span class="text-xs font-bold text-slate-400">ใช้ไปรวม: ฿${catSum.toLocaleString('th-TH')}</span>
-                    </div>
-                    <button onclick="deleteMainCategory('${category.id}')" class="text-slate-400 hover:text-rose-500 text-xs cursor-pointer"><i class="fas fa-folder-minus mr-1"></i>ลบกลุ่ม</button>
-                </div>
-                <div class="space-y-1 mb-4 max-h-40 overflow-y-auto pr-1">${itemsHTML || '<p class="text-2xs text-slate-400 text-center py-4">ยังไม่มีการบันทึกย่อย</p>'}</div>
-            </div>
-            <div class="bg-slate-50 p-3 rounded-xl space-y-2">
-                <input type="text" id="sub-detail-${category.id}" placeholder="ซื้ออะไร? (เช่น ค่าลูกโป่ง)" class="w-full p-2 text-xs border border-slate-200 bg-white rounded-lg focus:outline-none">
-                <input type="number" id="sub-amount-${category.id}" placeholder="กี่บาท?" class="w-full p-2 text-xs border border-slate-200 bg-white rounded-lg focus:outline-none">
-                <button onclick="addSubExpense('${category.id}')" class="w-full bg-slate-800 hover:bg-slate-900 text-white text-xs py-2 rounded-lg font-semibold transition cursor-pointer">+ บันทึกรายการย่อย</button>
-            </div>`;
-        container.appendChild(card);
-    });
-}
-
+// 💡 ต้องเอาฟังก์ชันไปผูกไว้กับ window เพื่อให้ HTML มองเห็นในระบบ Module
 window.addSubExpense = function(catId) {
-    const detail = document.getElementById(`sub-detail-${catId}`).value;
-    const amount = parseFloat(document.getElementById(`sub-amount-${catId}`).value);
-    if(!detail || isNaN(amount) || amount <= 0) return alert('กรุณากรอกข้อมูลให้ครบถ้วน');
-    push(ref(db, `expenses_categories/${catId}/sub_items`), { detail, amount });
-    push(dbLogsRef, { detail: `จ่าย: ${detail} (${localExpenses[catId].title})`, amount: amount, type: 'expense', time: new Date().toLocaleTimeString('th-TH', {hour: '2-digit', minute:'2-digit'}) });
-}
+    const detailInput = document.getElementById(`sub-detail-${catId}`);
+    const amountInput = document.getElementById(`sub-amount-${catId}`); // หรือ sub-price-${catId} ให้เลือกใช้อย่างใดอย่างหนึ่ง
+
+    if (!detailInput || !amountInput) {
+        console.error("ไม่พบ Elements สำหรับกรอกข้อมูลย่อย");
+        return;
+    }
+
+    const detail = detailInput.value.trim();
+    const amount = parseFloat(amountInput.value);
+    
+    // ตรวจสอบความถูกต้องของข้อมูล
+    if (!detail || isNaN(amount) || amount <= 0) {
+        alert('กรุณากรอกรายละเอียดและระบุจำนวนเงินให้ถูกต้อง (มากกว่า 0 บาท)');
+        return;
+    }
+    
+    const newItem = push(ref(db, `expenses_categories/${catId}/sub_items`));
+    set(newItem, { detail, amount }).catch(() => alert('บันทึกรายการไม่ได้ กรุณาลองใหม่')); 
+    
+    // เคลียร์ช่องกรอกหลังบันทึกสำเร็จ
+    detailInput.value = '';
+    amountInput.value = '';
+};
 
 window.deleteMainCategory = function(id) { if(confirm('ต้องการลบกลุ่มนี้หรือไม่?')) remove(ref(db, `expenses_categories/${id}`)); }
 window.deleteSubExpense = function(catId, subId) { if(confirm('ลบรายการย่อยนี้?')) remove(ref(db, `expenses_categories/${catId}/sub_items/${subId}`)); }
@@ -530,19 +663,29 @@ window.exportToCSV = function() {
     document.body.appendChild(link); link.click(); document.body.removeChild(link);
 }
 
-/* ==========================================================================
-   6. ACCOUNT LOGOUT GLOBAL UTILITY (ฟังก์ชันออกจากระบบส่งไปหน้า login.html)
-   ========================================================================== */
-window.handleLogout = function() {
-    if(confirm('คุณต้องการออกจากระบบเหรัญญิกใช่หรือไม่?')) {
-        localStorage.removeItem('admin_session');
-        sessionStorage.removeItem('admin_session');
-        window.location.href = 'login.html'; 
+window.handleLogout = async function() {
+    if(confirm('คุณต้องการออกจากระบบใช่หรือไม่?')) { await signOut(auth); location.replace('/login'); }
+}
+
+window.deleteHomework = function(hwId) {
+    if (confirm('คุณต้องการลบรายการการบ้านนี้ใช่หรือไม่? บัญชีฝั่งนักเรียนจะถูกอัปเดตทันที')) {
+        remove(ref(db, `homework_logs/${hwId}`));
     }
 }
 
-if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", initTreasuryApp);
-} else {
-    initTreasuryApp();
-}
+/* ==========================================================================
+   GLOBAL WINDOW EXPORTS FOR HTML INTERACTION (ONCLICK HANDLERS)
+   ========================================================================== */
+window.initTreasuryApp = initTreasuryApp;
+window.updateDateContext = updateDateContext;
+window.calculateSummary = calculateSummary;
+window.renderDailyLedgerTable = renderDailyLedgerTable;
+window.renderStudentList = renderStudentList;
+window.renderExpenseCategories = renderExpenseCategories;
+window.renderHomeworkAdmin = renderHomeworkAdmin;
+window.renderHomeworkStudent = renderHomeworkStudent;
+window.formatThaiDate = formatThaiDate;
+
+/* ==========================================================================
+   INITIALIZATION RUNNER
+   ========================================================================== */
