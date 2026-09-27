@@ -7,7 +7,7 @@ const $ = id => document.getElementById(id);
 const money = n => '฿' + Number(n).toLocaleString('th-TH', { minimumFractionDigits:2, maximumFractionDigits:2 });
 const date = s => /^\d{4}-\d{2}-\d{2}$/.test(s) ? new Date(`${s}T12:00:00`).toLocaleDateString('th-TH', {day:'numeric',month:'short',year:'numeric'}) : s;
 const number = n => { const value = Number(n); return Number.isFinite(value) && value > 0 ? value : 0; };
-let student = null, targets = {}, expenses = {}, stops = [];
+let student = null, targets = {}, stops = [];
 function message(text) { $('notice').textContent = text; $('notice').hidden = !text; }
 function render() {
   if (!student) return;
@@ -30,21 +30,7 @@ function render() {
   $('paid-total').textContent = money(paid); $('unpaid-total').textContent = money(unpaid);
   $('due-total').textContent = money(paid + unpaid);
   $('paid-count').textContent = `${pc} รอบ`; $('unpaid-count').textContent = `${uc} รอบ`;
-  const area = $('expenses'); area.replaceChildren(); let total = 0;
-  Object.values(expenses).forEach(category => {
-    const items = Object.values(category?.sub_items || {});
-    if (!items.length) return;
-    const card = document.createElement('article'); card.className = 'expense-card';
-    const title = document.createElement('h3'); title.textContent = category.title || 'ค่าใช้จ่าย'; card.append(title);
-    items.forEach(item => {
-      const row = document.createElement('div'); row.className = 'expense-row';
-      const label = document.createElement('span'); label.textContent = item.detail || 'รายการ';
-      const value = document.createElement('strong'); const amount = number(item.amount); total += amount; value.textContent = money(amount);
-      row.append(label,value); card.append(row);
-    }); area.append(card);
-  });
-  if (!area.children.length) area.textContent = 'ยังไม่มีรายการค่าใช้จ่าย';
-  $('class-expense').textContent = money(total);
+
 }
 onAuthStateChanged(auth, user => {
   stops.forEach(stop => stop()); stops = []; student = null;
@@ -56,7 +42,6 @@ onAuthStateChanged(auth, user => {
     student = { ...data, key }; render();
   }, () => message('อ่านข้อมูลนักเรียนไม่ได้ กรุณาตรวจสอบกฎ Firebase')));
   stops.push(onValue(ref(db, 'system_config/daily_targets'), s => { targets = s.val() || {}; render(); }, () => message('โหลดรอบเรียกเก็บไม่ได้')));
-  stops.push(onValue(ref(db, 'expenses_categories'), s => { expenses = s.val() || {}; render(); }, () => message('โหลดรายการค่าใช้จ่ายไม่ได้')));
   $('loading').hidden = true; $('app').hidden = false;
 });
 $('logout').addEventListener('click', async () => { localStorage.removeItem('kc_treasury_student_id'); await signOut(auth); location.replace('/student-login'); });

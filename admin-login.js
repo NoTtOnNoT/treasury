@@ -13,8 +13,11 @@ document.getElementById('login-form').addEventListener('submit', async event => 
   event.preventDefault();
   try {
     await setPersistence(auth, document.getElementById('login-remember').checked ? browserLocalPersistence : browserSessionPersistence);
-    const result = await signInWithEmailAndPassword(auth, document.getElementById('login-username').value.trim(), document.getElementById('login-password').value);
+    const name = document.getElementById('login-username').value.trim();
+    if (!/^[a-zA-Z0-9_-]{4,40}$/.test(name)) throw Error('ชื่อผู้ใช้ต้องเป็นอักษรอังกฤษ ตัวเลข _ หรือ - อย่างน้อย 4 ตัว');
+    const email = `${name.toLowerCase()}@admins.kc-smart.example`;
+    const result = await signInWithEmailAndPassword(auth, email, document.getElementById('login-password').value);
     if (!await isAdmin(result.user)) { await signOut(auth); throw Error('บัญชีนี้ไม่มีสิทธิ์ผู้ดูแล'); }
     location.replace('/treasury');
-  } catch (e) { alert(e.message.startsWith('Firebase:') ? 'อีเมลหรือรหัสผ่านไม่ถูกต้อง' : e.message); }
+  } catch (e) { alert(e.message.startsWith('Firebase:') ? 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง หรือยังไม่ได้ย้ายบัญชีเข้า Firebase Auth' : e.message); }
 });

@@ -1,39 +1,104 @@
 {
   "rules": {
+    ".read": false,
+    ".write": false,
     "admin_uids": {
       "$uid": {
         ".read": "auth != null && auth.uid === $uid",
-        ".write": false
+        ".write": false,
+        ".validate": "newData.isBoolean()"
       }
     },
     "students": {
       ".read": "auth != null && root.child('admin_uids').child(auth.uid).val() === true",
       ".write": "auth != null && root.child('admin_uids').child(auth.uid).val() === true",
-      "$studentKey": {
-        ".read": "auth != null && auth.token.firebase.sign_in_provider === 'anonymous'"
+      "$student_id": {
+        ".read": "auth != null && auth.token.firebase.sign_in_provider === 'anonymous'",
+        ".validate": "newData.hasChildren(['id', 'name'])",
+        "id": {
+          ".validate": "newData.isNumber()"
+        },
+        "name": {
+          ".validate": "newData.isString()"
+        },
+        "attendance": {
+          "$date": {
+            ".validate": "newData.isString() && (newData.val() == 'paid' || newData.val() == 'unpaid')"
+          }
+        }
       }
     },
     "system_config": {
       "daily_targets": {
         ".read": "auth != null && (root.child('admin_uids').child(auth.uid).val() === true || auth.token.firebase.sign_in_provider === 'anonymous')",
-        ".write": "auth != null && root.child('admin_uids').child(auth.uid).val() === true"
+        ".write": "auth != null && root.child('admin_uids').child(auth.uid).val() === true",
+        "$date": {
+          ".validate": "newData.isNumber() && newData.val() >= 0"
+        }
       },
       "admin_accounts": {
         ".read": false,
-        ".write": false
+        ".write": false,
+        "$admin_id": {
+          ".validate": "newData.hasChildren(['username', 'password'])",
+          "username": {
+            ".validate": "newData.isString() && newData.val().length >= 4"
+          },
+          "password": {
+            ".validate": "newData.isString() && newData.val().length >= 6"
+          }
+        }
       }
     },
     "expenses_categories": {
-      ".read": "auth != null && (root.child('admin_uids').child(auth.uid).val() === true || auth.token.firebase.sign_in_provider === 'anonymous')",
-      ".write": "auth != null && root.child('admin_uids').child(auth.uid).val() === true"
+      ".read": "auth != null && root.child('admin_uids').child(auth.uid).val() === true",
+      ".write": "auth != null && root.child('admin_uids').child(auth.uid).val() === true",
+      "$category_id": {
+        ".validate": "newData.hasChildren(['id', 'title'])",
+        "id": {
+          ".validate": "newData.isString()"
+        },
+        "title": {
+          ".validate": "newData.isString()"
+        },
+        "sub_items": {
+          "$sub_item_id": {
+            ".validate": "newData.hasChildren(['detail', 'amount'])",
+            "detail": {
+              ".validate": "newData.isString()"
+            },
+            "amount": {
+              ".validate": "newData.isNumber() && newData.val() > 0"
+            }
+          }
+        }
+      }
     },
     "transaction_logs": {
       ".read": "auth != null && root.child('admin_uids').child(auth.uid).val() === true",
-      ".write": "auth != null && root.child('admin_uids').child(auth.uid).val() === true"
+      ".write": "auth != null && root.child('admin_uids').child(auth.uid).val() === true",
+      "$log_id": {
+        ".validate": "newData.hasChildren(['detail', 'amount', 'type', 'time'])",
+        "detail": {
+          ".validate": "newData.isString()"
+        },
+        "amount": {
+          ".validate": "newData.isNumber() && newData.val() >= 0"
+        },
+        "type": {
+          ".validate": "newData.isString() && (newData.val() == 'income' || newData.val() == 'expense')"
+        },
+        "time": {
+          ".validate": "newData.isString()"
+        }
+      }
     },
     "homework_logs": {
       ".read": "auth != null && root.child('admin_uids').child(auth.uid).val() === true",
-      ".write": "auth != null && root.child('admin_uids').child(auth.uid).val() === true"
+      ".write": "auth != null && root.child('admin_uids').child(auth.uid).val() === true",
+      "$homework_id": {
+        ".validate": "newData.hasChildren(['subject', 'detail', 'assignDate', 'dueDate'])"
+      }
     }
   }
 }
