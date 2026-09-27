@@ -450,6 +450,9 @@
         });
     </script>
 
+        <script>
+          if (localStorage.getItem('admin_session') !== 'authenticated' && sessionStorage.getItem('admin_session') !== 'authenticated') location.replace('/login');
+        </script>
         <script type="module" src="script.js"></script>
     </body>
 </html>

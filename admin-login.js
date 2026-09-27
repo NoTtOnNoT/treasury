@@ -1,23 +1,34 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
-import { getAuth, signInWithEmailAndPassword, setPersistence, browserLocalPersistence, browserSessionPersistence, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js';
 import { getDatabase, ref, get } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js';
 import { firebaseConfig } from './firebase-config.js';
-const app = initializeApp(firebaseConfig), auth = getAuth(app), db = getDatabase(app);
-async function isAdmin(user) {
-  if (!user) return false;
-  const value = await get(ref(db, `admin_uids/${user.uid}`));
-  return value.val() === true;
-}
-onAuthStateChanged(auth, async user => { try { if (await isAdmin(user)) location.replace('/treasury'); } catch {} });
-document.getElementById('login-form').addEventListener('submit', async event => {
+
+const db = getDatabase(initializeApp(firebaseConfig));
+const form = document.getElementById('login-form');
+const button = form.querySelector('button[type="submit"]');
+const active = () => localStorage.getItem('admin_session') === 'authenticated' || sessionStorage.getItem('admin_session') === 'authenticated';
+if (active()) location.replace('/treasury');
+
+form.addEventListener('submit', async event => {
   event.preventDefault();
+  button.disabled = true;
+  const username = document.getElementById('login-username').value.trim();
+  const password = document.getElementById('login-password').value;
   try {
-    await setPersistence(auth, document.getElementById('login-remember').checked ? browserLocalPersistence : browserSessionPersistence);
-    const name = document.getElementById('login-username').value.trim();
-    if (!/^[a-zA-Z0-9_-]{4,40}$/.test(name)) throw Error('ชื่อผู้ใช้ต้องเป็นอักษรอังกฤษ ตัวเลข _ หรือ - อย่างน้อย 4 ตัว');
-    const email = `${name.toLowerCase()}@admins.kc-smart.example`;
-    const result = await signInWithEmailAndPassword(auth, email, document.getElementById('login-password').value);
-    if (!await isAdmin(result.user)) { await signOut(auth); throw Error('บัญชีนี้ไม่มีสิทธิ์ผู้ดูแล'); }
+    const snapshot = await get(ref(db, 'system_config/admin_accounts'));
+    if (!snapshot.exists()) throw Error('ไม่พบข้อมูลบัญชีผู้ดูแลใน Realtime Database');
+    const matched = Object.values(snapshot.val()).some(account =>
+      account && account.username === username && account.password === password
+    );
+    if (!matched) throw Error('ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง');
+    localStorage.removeItem('admin_session');
+    sessionStorage.removeItem('admin_session');
+    const storage = document.getElementById('login-remember').checked ? localStorage : sessionStorage;
+    storage.setItem('admin_session', 'authenticated');
     location.replace('/treasury');
-  } catch (e) { alert(e.message.startsWith('Firebase:') ? 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง หรือยังไม่ได้ย้ายบัญชีเข้า Firebase Auth' : e.message); }
+  } catch (error) {
+    alert(error.code === 'PERMISSION_DENIED' || error.code === 'permission-denied'
+      ? 'อ่านข้อมูลแอดมินไม่ได้ กรุณาตรวจสอบ Rules ที่ system_config/admin_accounts'
+      : error.message || 'เชื่อมต่อ Firebase ไม่สำเร็จ');
+    button.disabled = false;
+  }
 });

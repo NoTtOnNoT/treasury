@@ -4,8 +4,7 @@
    ========================================================================== */
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-import { getDatabase, ref, get, set, push, onValue, remove } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+import { getDatabase, ref, set, push, onValue, remove } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
 // 1. FIREBASE CONFIGURATION
 const firebaseConfig = {
@@ -21,19 +20,11 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-// Firebase Auth + database allowlist; never trust a browser storage flag.
-const auth = getAuth(app);
-let authorized = false;
-onAuthStateChanged(auth, async user => {
-    if (!user) { location.replace('/login'); return; }
-    try {
-        const record = await get(ref(db, `admin_uids/${user.uid}`));
-        if (record.val() !== true) { await signOut(auth); location.replace('/login'); return; }
-        authorized = true;
-        if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initTreasuryApp, {once:true});
-        else initTreasuryApp();
-    } catch { await signOut(auth); location.replace('/login'); }
-});
+// Admin session is remembered in the selected browser storage.
+// This is a UI gate only; RTDB rules cannot verify a client-side session flag.
+const authorized = localStorage.getItem('admin_session') === 'authenticated' ||
+    sessionStorage.getItem('admin_session') === 'authenticated';
+if (!authorized) location.replace('/login');
 
 // 3. DATABASE REFERENCE DECLARATIONS
 const dbStudentsRef = ref(db, 'students');
@@ -663,8 +654,12 @@ window.exportToCSV = function() {
     document.body.appendChild(link); link.click(); document.body.removeChild(link);
 }
 
-window.handleLogout = async function() {
-    if(confirm('คุณต้องการออกจากระบบใช่หรือไม่?')) { await signOut(auth); location.replace('/login'); }
+window.handleLogout = function() {
+    if (confirm('คุณต้องการออกจากระบบใช่หรือไม่?')) {
+        localStorage.removeItem('admin_session');
+        sessionStorage.removeItem('admin_session');
+        location.replace('/login');
+    }
 }
 
 window.deleteHomework = function(hwId) {
@@ -689,3 +684,8 @@ window.formatThaiDate = formatThaiDate;
 /* ==========================================================================
    INITIALIZATION RUNNER
    ========================================================================== */
+
+if (authorized) {
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initTreasuryApp, { once: true });
+    else initTreasuryApp();
+}

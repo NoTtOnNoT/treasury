@@ -2,18 +2,10 @@
   "rules": {
     ".read": false,
     ".write": false,
-    "admin_uids": {
-      "$uid": {
-        ".read": "auth != null && auth.uid === $uid",
-        ".write": false,
-        ".validate": "newData.isBoolean()"
-      }
-    },
     "students": {
-      ".read": "auth != null && root.child('admin_uids').child(auth.uid).val() === true",
-      ".write": "auth != null && root.child('admin_uids').child(auth.uid).val() === true",
+      ".read": true,
+      ".write": true,
       "$student_id": {
-        ".read": "auth != null && auth.token.firebase.sign_in_provider === 'anonymous'",
         ".validate": "newData.hasChildren(['id', 'name'])",
         "id": {
           ".validate": "newData.isNumber()"
@@ -30,14 +22,14 @@
     },
     "system_config": {
       "daily_targets": {
-        ".read": "auth != null && (root.child('admin_uids').child(auth.uid).val() === true || auth.token.firebase.sign_in_provider === 'anonymous')",
-        ".write": "auth != null && root.child('admin_uids').child(auth.uid).val() === true",
+        ".read": true,
+        ".write": true,
         "$date": {
           ".validate": "newData.isNumber() && newData.val() >= 0"
         }
       },
       "admin_accounts": {
-        ".read": false,
+        ".read": true,
         ".write": false,
         "$admin_id": {
           ".validate": "newData.hasChildren(['username', 'password'])",
@@ -51,8 +43,8 @@
       }
     },
     "expenses_categories": {
-      ".read": "auth != null && root.child('admin_uids').child(auth.uid).val() === true",
-      ".write": "auth != null && root.child('admin_uids').child(auth.uid).val() === true",
+      ".read": true,
+      ".write": true,
       "$category_id": {
         ".validate": "newData.hasChildren(['id', 'title'])",
         "id": {
@@ -75,8 +67,8 @@
       }
     },
     "transaction_logs": {
-      ".read": "auth != null && root.child('admin_uids').child(auth.uid).val() === true",
-      ".write": "auth != null && root.child('admin_uids').child(auth.uid).val() === true",
+      ".read": true,
+      ".write": true,
       "$log_id": {
         ".validate": "newData.hasChildren(['detail', 'amount', 'type', 'time'])",
         "detail": {
@@ -94,11 +86,15 @@
       }
     },
     "homework_logs": {
-      ".read": "auth != null && root.child('admin_uids').child(auth.uid).val() === true",
-      ".write": "auth != null && root.child('admin_uids').child(auth.uid).val() === true",
+      ".read": true,
+      ".write": true,
       "$homework_id": {
         ".validate": "newData.hasChildren(['subject', 'detail', 'assignDate', 'dueDate'])"
       }
+    },
+    "reports": {
+      ".read": true,
+      ".write": true
     }
   }
 }
